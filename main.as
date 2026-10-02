@@ -73,7 +73,14 @@ bool indexDirty = false;
 
 MapStats@ current;                      // the map on screen, or null
 int seenRestarts = 0, seenRespawns = 0, seenFalls = 0;
-bool wasComplete = false;
+// A finish: the race stops (bRaceActive goes false) while it counts as complete, and the game takes the ball away
+// (EndRaceSequence un-possesses it: the run id goes to -1). Read from the game's Blueprints (BP_TrackManager,
+// BP_MyPlayerController): bRaceComplete is only ever set at a finish and stays true until the map is loaded again, so
+// it can't tell one finish from the next; a restart also stops the race but keeps the ball.
+const double FINISH_WAIT = 1.5;         // seconds after the race stops for the ball to be taken away
+bool wasActive = false;
+double finishUntil = 0;                 // while the race has stopped complete: until when a finish may still be seen
+MapStats@ finishMap;                    // the map it stopped on
 int seenCheckpoint = -1;
 double lastTick = 0, lastSave = 0;
 
@@ -105,7 +112,7 @@ void Main()
     seenRestarts = Race::Restarts();
     seenRespawns = Race::Respawns();
     seenFalls = Race::Falls();
-    wasComplete = Race::IsComplete();
+    wasActive = Race::IsActive();
     lastTick = lastSave = Host::Time();
 
     @footer = UI::AddFooterButton("grind stats");
@@ -326,7 +333,7 @@ int NumberOf(MapStats@ m, Checkpoint@ cp)
 void Count(double step)
 {
     int restarts = Race::Restarts(), respawns = Race::Respawns(), falls = Race::Falls();
-    bool complete = Race::IsComplete();
+    bool complete = Race::IsComplete(), active = Race::IsActive();
     if (Counting())
     {
         string key = Race::TrackKey();
@@ -353,8 +360,11 @@ void Count(double step)
             else
                 current.fallsAtStart += falls - seenFalls;
         }
-        if (complete && !wasComplete)
-            current.finishes++;
+        if (wasActive && !active && complete)
+        {
+            finishUntil = Host::Time() + FINISH_WAIT;
+            @finishMap = current;
+        }
         seenCheckpoint = index;
     }
     else if (current !is null)
@@ -362,10 +372,22 @@ void Count(double step)
         @current = null;
         Save();
     }
+    // checked whether or not this frame counts, so a view the game switches to after the finish doesn't hide it
+    if (finishUntil > 0)
+    {
+        if (Race::RunId() < 0 && finishMap !is null)
+        {
+            finishMap.finishes++;
+            finishMap.dirty = true;
+            finishUntil = 0;
+        }
+        else if (Host::Time() > finishUntil)
+            finishUntil = 0;                // the ball stayed: a restart, not a finish
+    }
     seenRestarts = restarts;
     seenRespawns = respawns;
     seenFalls = falls;
-    wasComplete = complete;
+    wasActive = active;
 }
 
 // --- text -------------------------------------------------------------------------------------------------------------

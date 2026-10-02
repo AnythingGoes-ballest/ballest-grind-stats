@@ -1,6 +1,6 @@
 [meta]
 name = "Grind Stats"
-version = "0.1.0"
+version = "0.1.1"
 author = "AnythingGoes"
 description = "Time spent, restarts, and respawns and falls at each checkpoint, for every map you play, with totals across all of them."
 min_host = "0.18.0"
