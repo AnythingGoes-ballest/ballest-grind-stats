@@ -46,7 +46,7 @@ looks at steering and jumping, through the game's own input.
 
 ## Install
 
-In the game: footer **plugins** > **browse** > Grind Stats > **install**. Needs the plugin manager host 0.24.0 or
+In the game: footer **plugins** > **browse** > Grind Stats > **install**. Needs the plugin manager host 0.23.6 or
 newer.
 
 ## How it works

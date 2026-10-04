@@ -1,9 +1,9 @@
 [meta]
 name = "Grind Stats"
 version = "0.2.0"
-author = "AnythingGoes"
+author = "AnythingGoes, Will"
 description = "Played time, attempts and finishes on a card, all-time and this session, plus restarts, respawns and falls at each checkpoint, for every map you play."
-min_host = "0.24.0"
+min_host = "0.23.6"
 
 [script]
 files = ["main.as"]
