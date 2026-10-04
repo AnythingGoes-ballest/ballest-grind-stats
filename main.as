@@ -100,6 +100,7 @@ class MapStats
     int respawns = 0;
     int falls = 0;
     int fallsAtStart = 0;               // falls before the first checkpoint (back to the start)
+    int restartsAtStart = 0;            // restarts before the first checkpoint
     int finishes = 0;
     double played = 0;                  // seconds actually racing (see the top)
     int attempts = 0;                   // runs started
@@ -269,8 +270,8 @@ void Main()
 }
 
 // --- saving -----------------------------------------------------------------------------------------------------------
-// Storage keeps one line per key: "maps" lists every map's key (joined by '|'), "m:<key>" a map's numbers (played and
-// attempts were added at the end in 0.2.0, so a 0.1 file still loads) and
+// Storage keeps one line per key: "maps" lists every map's key (joined by '|'), "m:<key>" a map's numbers (played,
+// attempts and restarts before the first checkpoint were added at the end in 0.2.0, so a 0.1 file still loads) and
 // "c:<key>" its checkpoints ("x,y,z,respawns,falls" joined by ';'). Keys can't hold '=' (the file's separator), names
 // can't hold tabs, '|' or line breaks: those are replaced.
 
@@ -332,6 +333,8 @@ void Load()
             m.played = parseFloat(f[13]);
             m.attempts = int(parseInt(f[14]));
         }
+        if (f.length() >= 16)
+            m.restartsAtStart = int(parseInt(f[15]));
         string cps = Storage::Get("c:" + keys[i], "");
         if (cps != "")
         {
@@ -363,7 +366,8 @@ void Save()
             continue;
         array<string> f = {"1", Clean(m.name), Clean(m.author), Clean(m.image), m.custom ? "1" : "0", formatFloat(m.seconds, "", 0, 1),
                            "" + m.restarts, "" + m.respawns, "" + m.falls, "" + m.fallsAtStart, "" + m.finishes, "" + m.checkpointTotal,
-                           "" + m.lastPlayed, formatFloat(m.played, "", 0, 1), "" + m.attempts};
+                           "" + m.lastPlayed, formatFloat(m.played, "", 0, 1), "" + m.attempts,
+                           "" + m.restartsAtStart};
         Storage::Set("m:" + StorageKey(m.key), Joined(f, "\t"));
         array<string> cps;
         for (uint c = 0; c < m.checkpoints.length(); c++)
@@ -543,7 +547,11 @@ void Count(double step)
         int index = Race::CurrentCheckpoint();
         Checkpoint@ cp = index >= 0 ? Known(current, index) : null;
         if (restarts > seenRestarts)
+        {
             current.restarts += restarts - seenRestarts;
+            if (seenCheckpoint < 0)         // where the ball was before the restart put it back
+                current.restartsAtStart += restarts - seenRestarts;
+        }
         if (respawns > seenRespawns)
         {
             current.respawns += respawns - seenRespawns;
@@ -790,7 +798,7 @@ void UpdateCard()
     for (uint i = 0; i < cardRows.length(); i++)
         if (cardRows[i].shown)
             cardRows[i].Fill(current);
-    // Only on maps that have checkpoints: before the first one, the falls back to the start.
+    // Only on maps that have checkpoints: before the first one, the restarts and the falls back to the start.
     checkpointRow.Show(ShowCheckpoint && current.checkpointTotal > 0);
     if (!checkpointRow.shown)
         return;
@@ -798,7 +806,7 @@ void UpdateCard()
     if (cp is null)
     {
         checkpointRow.value.text = "START";
-        checkpointDetail.text = Plural(current.fallsAtStart, "fall");
+        checkpointDetail.text = Plural(current.restartsAtStart, "restart") + ", " + Plural(current.fallsAtStart, "fall");
     }
     else
     {
@@ -1028,7 +1036,7 @@ void BuildDetail(MapStats@ m)
         Muted(Column("falls", 140, 14));
         stats.NewRow();
         Column("start", 180);
-        Muted(Column("-", 140));
+        Column(Plural(m.restartsAtStart, "restart"), 140);
         Column("" + m.fallsAtStart, 140);
         for (uint i = 0; i < m.checkpoints.length(); i++)
         {
@@ -1055,7 +1063,7 @@ void ResetMap(MapStats@ m)
 {
     m.seconds = 0;
     m.played = 0;
-    m.restarts = m.respawns = m.falls = m.fallsAtStart = m.finishes = m.attempts = 0;
+    m.restarts = m.respawns = m.falls = m.fallsAtStart = m.restartsAtStart = m.finishes = m.attempts = 0;
     m.checkpoints.resize(0);
     m.dirty = true;
     if (session.key == m.key)

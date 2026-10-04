@@ -14,7 +14,8 @@ For every map you play (the game's own tracks and every workshop or local map), 
 
 - **Time**: all the time the map is on screen, including the pre-race menu and the pause menu. Watching a replay and
   the track editor don't count.
-- **Restarts**: restarts from the beginning (Backspace, or R before the first checkpoint).
+- **Restarts**: restarts from the beginning (Backspace, or R before the first checkpoint). The ones made before the
+  first checkpoint are also counted for the start.
 - **Respawns**: R at a checkpoint, counted for that checkpoint.
 - **Falls**: falls into the kill zone, counted for the checkpoint the ball goes back to (or the start).
 - **Finishes**: runs finished.
@@ -40,7 +41,8 @@ looks at steering and jumping, through the game's own input.
 - **Settings** (footer **plugins** > **installed** > Grind Stats > **settings**): show or hide the card, its text
   size, and how dark its background is. Six more switches, all off by default, add rows to the card: the map's name,
   its time on the map (menus and pause included), restarts, respawns and falls (each with this session's count in
-  lime), and the checkpoint you're on with its respawns and falls (on maps that have checkpoints).
+  lime), and the checkpoint you're on with its respawns and falls, or before the first one the restarts and falls at the
+  start (on maps that have checkpoints).
 
 ## Install
 
