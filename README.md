@@ -31,12 +31,12 @@ looks at steering and jumping, through the game's own input.
 ## Using it
 
 - **While you play**, a card shows this map's played time, attempts and finishes, all-time and (in lime) this
-  session. A session starts when the map is loaded; a restart
-  keeps it. Drag the card anywhere while the cursor is on screen (the pause menu, for example).
+  session. A session starts when the map is loaded; a restart keeps it, and leaving the track ends it. Drag the card anywhere while the cursor is on screen (the pause menu, for example).
 - **F6** hides and shows the card until the game closes. **F8** writes this map's numbers to the plugin manager's log.
 - **grind stats** in the footer opens every map's stats: the totals across all maps, then each map with its picture,
   sortable by most time, most restarts, most recent or name. **details** shows a map's checkpoints (the one where
-  the most went wrong stands out) and has **reset this map** (click it twice).
+  the most went wrong stands out) and has **reset this map** (click it twice), which clears every number the map has, played time and
+  attempts too.
 - **Settings** (footer **plugins** > **installed** > Grind Stats > **settings**): show or hide the card, its text
   size, and how dark its background is. Six more switches, all off by default, add rows to the card: the map's name,
   its time on the map (menus and pause included), restarts, respawns and falls (each with this session's count in
