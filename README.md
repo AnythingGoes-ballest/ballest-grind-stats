@@ -38,7 +38,9 @@ looks at steering and jumping, through the game's own input.
   sortable by most time, most restarts, most recent or name. **details** shows a map's checkpoints (the one where
   the most went wrong stands out) and has **reset this map** (click it twice).
 - **Settings** (footer **plugins** > **installed** > Grind Stats > **settings**): show or hide the card, its text
-  size, and how dark its background is.
+  size, and how dark its background is. Six more switches, all off by default, add rows to the card: the map's name,
+  its time on the map (menus and pause included), restarts, respawns and falls (each with this session's count in
+  lime), and the checkpoint you're on with its respawns and falls (on maps that have checkpoints).
 
 ## Install
 

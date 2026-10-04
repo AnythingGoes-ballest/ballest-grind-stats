@@ -11,13 +11,14 @@
 //                last IDLE_AFTER seconds (Trackmania Grinding Stats' idle rule)
 //   attempts     runs started: the first start and every restart
 // The card shows this map's played time, attempts and finishes, all-time and for this session (since the map was
-// loaded; a restart doesn't start a new one). F6 hides and shows it until the game closes, F8 writes the map's numbers
-// to the log.
+// loaded; a restart doesn't start a new one). Settings add rows for the map's name, its time on the map, restarts,
+// respawns, falls (each with this session's count) and the checkpoint you're on. F6 hides and shows it until the game
+// closes, F8 writes the map's numbers to the log.
 // Checkpoints are numbered in the order you first reached them and recognised by where they are, so a checkpoint keeps
 // its number between sessions. Everything comes from the game (Race::Restarts, Respawns, Falls, CurrentCheckpoint),
 // not from key presses, so rebinding keys changes nothing.
 //
-// A small box shows this map's numbers while you play (it can be dragged while the cursor is on screen). The
+// The card can be dragged while the cursor is on screen. The
 // "grind stats" footer button opens every map's stats with the totals; a map's "details" shows its checkpoints.
 
 [Setting name="Show card" description="The card with this map's numbers while you play; stats keep counting either way"]
@@ -28,6 +29,25 @@ float OverlaySize = 15;
 
 [Setting name="Background" min=0 max=1 description="How dark the box behind the card is (0: none)"]
 float BackgroundOpacity = 0.72f;
+
+// Extra rows for the card, all off by default.
+[Setting name="Show map name" description="A MAP row above the others"]
+bool ShowMapName = false;
+
+[Setting name="Show time on the map" description="All the time the map was on screen, menus and pause included"]
+bool ShowOnMap = false;
+
+[Setting name="Show restarts"]
+bool ShowRestarts = false;
+
+[Setting name="Show respawns"]
+bool ShowRespawns = false;
+
+[Setting name="Show falls"]
+bool ShowFalls = false;
+
+[Setting name="Show checkpoint" description="Respawns and falls at the checkpoint you're on, on maps that have checkpoints"]
+bool ShowCheckpoint = false;
 
 // Colours (linear, as the widgets take them), the same as the ghost viewer's.
 const float WINDOW_R = 0.0052f, WINDOW_G = 0.0060f, WINDOW_B = 0.0086f;     // #101217
@@ -103,6 +123,9 @@ class Session
     double played = 0;
     int attempts = 0;
     int finishes = 0;
+    int restarts = 0;
+    int respawns = 0;
+    int falls = 0;
 }
 Session@ session = Session();
 int countedRun = -1;                    // the Race::RunId last counted as an attempt
@@ -120,6 +143,34 @@ UI::Text@ attemptsText;
 UI::Text@ attemptsDelta;
 UI::Text@ finishesText;
 UI::Text@ finishesDelta;
+array<UI::Text@> overlayValues;         // sized from Card size, as the labels are from it times LABEL_SCALE
+
+// A row the settings can add to the card: its texts, shown or hidden together (hidden ones take no room, so the
+// card closes up).
+class CardRow
+{
+    array<UI::Text@> parts;
+    bool shown = true;
+    void Show(bool on)
+    {
+        if (on == shown)
+            return;
+        shown = on;
+        for (uint i = 0; i < parts.length(); i++)
+            parts[i].visible = on;
+    }
+}
+CardRow mapRow, onMapRow, restartsRow, respawnsRow, fallsRow, checkpointRow;
+UI::Text@ mapText;
+UI::Text@ onMapText;
+UI::Text@ restartsText;
+UI::Text@ restartsDelta;
+UI::Text@ respawnsText;
+UI::Text@ respawnsDelta;
+UI::Text@ fallsText;
+UI::Text@ fallsDelta;
+UI::Text@ checkpointText;
+UI::Text@ checkpointDetail;
 
 UI::Window@ stats;
 int listView = 0, detailView = 0;
@@ -400,16 +451,21 @@ void Count(double step)
         int index = Race::CurrentCheckpoint();
         Checkpoint@ cp = index >= 0 ? Known(current, index) : null;
         if (restarts > seenRestarts)
+        {
             current.restarts += restarts - seenRestarts;
+            session.restarts += restarts - seenRestarts;
+        }
         if (respawns > seenRespawns)
         {
             current.respawns += respawns - seenRespawns;
+            session.respawns += respawns - seenRespawns;
             if (cp !is null)
                 cp.respawns += respawns - seenRespawns;
         }
         if (falls > seenFalls)
         {
             current.falls += falls - seenFalls;
+            session.falls += falls - seenFalls;
             if (cp !is null)
                 cp.falls += falls - seenFalls;
             else
@@ -538,33 +594,48 @@ void Primary(UI::Button@ b) { b.SetBackground(PRIMARY_R, PRIMARY_G, PRIMARY_B, 1
 //   FINISHES    27   +3                      runs finished
 // In the game's own menu font, labels filling the row so the numbers sit against the right edge, rows touching.
 
-UI::Text@ CardLabel(const string &in text)
+UI::Text@ CardLabel(const string &in text, CardRow@ row = null)
 {
     UI::Text@ t = overlay.AddText(text, OverlaySize * LABEL_SCALE);
     t.SetFont(CARD_FONT);
     t.SetColor(1, 1, 1, 0.65f);
     t.SetFill(true);
     overlayLabels.insertLast(t);
+    if (row !is null)
+        row.parts.insertLast(t);
     return t;
 }
 
-UI::Text@ CardValue()
+UI::Text@ CardValue(CardRow@ row = null)
 {
     UI::Text@ t = overlay.AddText("", OverlaySize);
     t.SetFont(CARD_FONT);
     t.SetGapBefore(18);
+    overlayValues.insertLast(t);
+    if (row !is null)
+        row.parts.insertLast(t);
     return t;
 }
 
-UI::Text@ CardDelta()
+UI::Text@ CardDelta(CardRow@ row = null)
 {
     UI::Text@ t = overlay.AddText("", OverlaySize);
     t.SetFont(CARD_FONT);
     t.SetColor(LIME_R, LIME_G, LIME_B, 1);
     t.SetGapBefore(10);
+    overlayValues.insertLast(t);
+    if (row !is null)
+        row.parts.insertLast(t);
     return t;
 }
 
+//   MAP         Chaos2                       (Show map name)
+//   TOTAL ... FINISHES                       always
+//   ON MAP      0:42:17                      (Show time on the map)
+//   RESTARTS    36   +4                      (Show restarts)
+//   RESPAWNS    120  +9                      (Show respawns)
+//   FALLS       12   +1                      (Show falls)
+//   CHECKPOINT  3    14 respawns, 2 falls    (Show checkpoint; only on maps with checkpoints)
 void BuildOverlay()
 {
     @overlay = UI::CreateWindow();
@@ -574,6 +645,9 @@ void BuildOverlay()
     overlay.SetPadding(14, 8);
     overlay.SetRowGap(0);
     overlay.visible = false;
+    CardLabel("MAP", mapRow);
+    @mapText = CardValue(mapRow);
+    overlay.NewRow();
     CardLabel("TOTAL");
     @playedText = CardValue();
     overlay.NewRow();
@@ -587,6 +661,27 @@ void BuildOverlay()
     CardLabel("FINISHES");
     @finishesText = CardValue();
     @finishesDelta = CardDelta();
+    overlay.NewRow();
+    CardLabel("ON MAP", onMapRow);
+    @onMapText = CardValue(onMapRow);
+    overlay.NewRow();
+    CardLabel("RESTARTS", restartsRow);
+    @restartsText = CardValue(restartsRow);
+    @restartsDelta = CardDelta(restartsRow);
+    overlay.NewRow();
+    CardLabel("RESPAWNS", respawnsRow);
+    @respawnsText = CardValue(respawnsRow);
+    @respawnsDelta = CardDelta(respawnsRow);
+    overlay.NewRow();
+    CardLabel("FALLS", fallsRow);
+    @fallsText = CardValue(fallsRow);
+    @fallsDelta = CardDelta(fallsRow);
+    overlay.NewRow();
+    CardLabel("CHECKPOINT", checkpointRow);
+    @checkpointText = CardValue(checkpointRow);
+    @checkpointDetail = CardLabel("", checkpointRow);
+    checkpointDetail.SetFill(false);
+    checkpointDetail.SetGapBefore(10);
     overlay.movable = true;             // after SetOffset: that is where "reset position" puts it back
     OnSettingsChanged();
 }
@@ -596,10 +691,15 @@ void OnSettingsChanged()
 {
     for (uint i = 0; i < overlayLabels.length(); i++)
         overlayLabels[i].size = OverlaySize * LABEL_SCALE;
-    array<UI::Text@> values = {playedText, sessionText, attemptsText, attemptsDelta, finishesText, finishesDelta};
-    for (uint i = 0; i < values.length(); i++)
-        values[i].size = OverlaySize;
+    for (uint i = 0; i < overlayValues.length(); i++)
+        overlayValues[i].size = OverlaySize;
     overlay.SetBackground(0.08f, 0.08f, 0.09f, BackgroundOpacity);
+    mapRow.Show(ShowMapName);
+    onMapRow.Show(ShowOnMap);
+    restartsRow.Show(ShowRestarts);
+    respawnsRow.Show(ShowRespawns);
+    fallsRow.Show(ShowFalls);
+    checkpointRow.Show(ShowCheckpoint && current !is null && current.checkpointTotal > 0);
 }
 
 // M:SS, or H:MM:SS from an hour
@@ -626,6 +726,40 @@ void UpdateOverlay()
     attemptsDelta.text = "+" + session.attempts;
     finishesText.text = "" + current.finishes;
     finishesDelta.text = "+" + session.finishes;
+    if (ShowMapName)
+        mapText.text = Short(current.name, 28);
+    if (ShowOnMap)
+        onMapText.text = ShortTime(current.seconds);
+    if (ShowRestarts)
+    {
+        restartsText.text = "" + current.restarts;
+        restartsDelta.text = "+" + session.restarts;
+    }
+    if (ShowRespawns)
+    {
+        respawnsText.text = "" + current.respawns;
+        respawnsDelta.text = "+" + session.respawns;
+    }
+    if (ShowFalls)
+    {
+        fallsText.text = "" + current.falls;
+        fallsDelta.text = "+" + session.falls;
+    }
+    // Only on maps that have checkpoints: before the first one, the falls back to the start.
+    checkpointRow.Show(ShowCheckpoint && current.checkpointTotal > 0);
+    if (!checkpointRow.shown)
+        return;
+    Checkpoint@ cp = seenCheckpoint >= 0 ? Known(current, seenCheckpoint) : null;
+    if (cp is null)
+    {
+        checkpointText.text = "START";
+        checkpointDetail.text = Plural(current.fallsAtStart, "fall");
+    }
+    else
+    {
+        checkpointText.text = "" + NumberOf(current, cp);
+        checkpointDetail.text = Plural(cp.respawns, "respawn") + ", " + Plural(cp.falls, "fall");
+    }
 }
 
 // F8: this map's numbers in the log.
